@@ -1,102 +1,45 @@
 #include "monty.h"
-
+bus_t bus = {NULL, NULL, NULL, 0};
 /**
- * open_up - open a monty and validate input
- * @argc: args count
- * @filename: path to monty
- */
-void open_up(int argc, char *filename)
+* main - monty code interpreter
+* @argc: number of arguments
+* @argv: monty file location
+* Return: 0 on success
+*/
+int main(int argc, char *argv[])
 {
+	char *content;
+	FILE *file;
+	size_t size = 0;
+	ssize_t read_line = 1;
+	stack_t *stack = NULL;
+	unsigned int counter = 0;
+
 	if (argc != 2)
 	{
-		dprintf(STDERR_FILENO, "USAGE: monty file\n");
+		fprintf(stderr, "USAGE: monty file\n");
 		exit(EXIT_FAILURE);
 	}
-	monty.file = fopen(filename, "r");
-	if (!monty.file)
+	file = fopen(argv[1], "r");
+	bus.file = file;
+	if (!file)
 	{
-		dprintf(STDERR_FILENO, "Error: Can't open file %s\n", filename);
+		fprintf(stderr, "Error: Can't open file %s\n", argv[1]);
 		exit(EXIT_FAILURE);
 	}
-}
-
-/**
- * read_line - reads and executes each line of input from monty file
- */
-void read_line(void)
-{
-	size_t len = 0;
-	ssize_t read;
-	char *opcode, *data;
-
-	while ((read = getline(&monty.line, &len, monty.file) != -1))
+	while (read_line > 0)
 	{
-		opcode = strtok(monty.line, " ");
-		if (*opcode == '#' || *opcode == '\n')
+		content = NULL;
+		read_line = getline(&content, &size, file);
+		bus.content = content;
+		counter++;
+		if (read_line > 0)
 		{
-			monty.line_number++;
-			continue;
+			execute(content, &stack, counter, file);
 		}
-		else if (strcmp(opcode, "push") == 0)
-		{
-			data = strtok(NULL, " \n");
-			if (monty.is_queue)
-			{
-				push_queue(data);
-			}
-			else
-				push(data);
-		}
-		else
-			op_choose(&monty.stack, opcode);
-		monty.line_number++;
+		free(content);
 	}
-}
-
-/**
- * op_choose - find & call the function that corresponds with the opcode
- * @stack: **pointer to stack
- * @opcode: opcode from this line of our monty file
- */
-void op_choose(stack_t **stack, char *opcode)
-{
-	int i;
-	char *op;
-	instruction_t fncs[] = {
-		{"pall", pall},
-		{"pint", pint},
-		{"pop", pop},
-		{"swap", swap},
-		{"add", add},
-		{"nop", nop},
-		{"sub", sub},
-		{"div", div_op},
-		{"mul", mul},
-		{"mod", mod},
-		{"pchar", pchar},
-		{"pstr", pstr},
-		{"rotl", rotl},
-		{"rotr", rotr},
-		{"stack", stack_op},
-		{"queue", queue_op},
-		{NULL, NULL}
-	};
-
-	op = strtok(opcode, "\n");
-	for (i = 0; fncs[i].opcode; i++)
-	{
-		if (strcmp(op, fncs[i].opcode) == 0)
-		{
-			fncs[i].f(stack, monty.line_number);
-			return;
-		}
-	}
-	if (strcmp(opcode, "push"))
-	{
-		dprintf(STDERR_FILENO, "L%u: ", monty.line_number);
-		dprintf(STDERR_FILENO, "unknown instruction %s\n", opcode);
-	}
-	else
-		dprintf(STDERR_FILENO, "L%u: usage: push integer\n", monty.line_number);
-	exit(EXIT_FAILURE);
+	free_stack(stack);
+	fclose(file);
+return (0);
 }
